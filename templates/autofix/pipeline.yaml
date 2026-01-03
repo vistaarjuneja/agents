@@ -1,0 +1,36 @@
+pipeline:
+  clone:
+    depth: 1
+    ref:
+      name: <+inputs.branch>
+      type: branch
+  repo:
+    name: <+inputs.repo>
+  stages:
+    - name: autofix
+      steps:
+        - name: autofix
+          run:
+            container:
+              image: anewdocker25/mydockerhub:autofix-plugin
+            env:
+              PLUGIN_WORKING_DIRECTORY: /harness
+              PLUGIN_HARNESS_API_KEY: <+inputs.harnessApiKey>
+              PLUGIN_DETAILED_LOGGING: "true"
+              ANTHROPIC_API_KEY: <+inputs.llmKey>
+              HARNESS_EXECUTION_ID: <+inputs.executionId>
+      platform:
+        os: linux
+        arch: arm64
+  inputs:
+    llmKey:
+      type: secret
+    harnessApiKey:
+      type: secret
+    repo:
+      type: string
+    branch:
+      type: string
+      default: main
+    executionId:
+      type: string
