@@ -9,24 +9,47 @@ pipeline:
   stages:
     - name: autofix
       steps:
-        - name: autofix
+        - name: remediation_agent
           run:
             container:
-              image: anewdocker25/mydockerhub:autofix-plugin
+              image: anewdocker25/mydockerhub:remediation-agent
+            with:
+              detailed_logging: "true"
+              harness_api_key: <+inputs.harnessKey>
+              output_dir: /harness/5c5b7e75_813d_40ec_9836_40b5bcf750e6_autofix
+              working_directory: /harness
+              harness_execution_id: <+inputs.executionId>
             env:
-              PLUGIN_WORKING_DIRECTORY: /harness
-              PLUGIN_HARNESS_API_KEY: <+inputs.harnessApiKey>
-              PLUGIN_DETAILED_LOGGING: "true"
-              ANTHROPIC_API_KEY: <+inputs.llmKey>
-              HARNESS_EXECUTION_ID: <+inputs.executionId>
+              ANTHROPIC_API_KEY: <+inputs.anthropicKey>
+        - name: coding_agent
+          run:
+            container:
+              image: anewdocker25/mydockerhub:coding-agent
+            with:
+              detailed_logging: "true"
+              max_iterations: "50"
+              task_file_path: /harness/5c5b7e75_813d_40ec_9836_40b5bcf750e6_autofix/task.txt
+              working_directory: /harness
+              show_diff: "false"
+            env:
+              ANTHROPIC_API_KEY: <+inputs.anthropicKey>
+        - name: show_git_diff
+          run:
+            shell: bash
+            script: |-
+              rm -r 5c5b7e75_813d_40ec_9836_40b5bcf750e6_autofix
+              git add -A
+              git diff --cached
       platform:
         os: linux
         arch: arm64
   inputs:
-    llmKey:
+    anthropicKey:
       type: secret
-    harnessApiKey:
+      default: account.autofix_anthropic_api_key
+    harnessKey:
       type: secret
+      default: account.harness_api_key
     repo:
       type: string
     branch:
