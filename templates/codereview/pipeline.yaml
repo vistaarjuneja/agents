@@ -1,10 +1,11 @@
 pipeline:
   clone:
-    depth: 100
+    depth: 1
     ref:
       type: pull-request
-  repo:
-    name: <+inputs.repo>
+      number: <+inputs.pullReq>
+
+    repo: <+inputs.repo>
   stages:
     - name: autofix
       steps:
@@ -13,9 +14,9 @@ pipeline:
             container:
               image: abhinavharness/drone-ai-review:latest
             with:
-              output_dir: /harness/5c5b7e75_813d_40ec_9836_40b5bcf750e6_autofix/task.txt
+              output_file: /harness/5c5b7e75_813d_40ec_9836_40b5bcf750e6_autofix/task.txt
+              review_output_file: /harness/5c5b7e75_813d_40ec_9836_40b5bcf750e6_autofix/review.json
               working_directory: /harness
-              harness_execution_id: <+inputs.executionId>
         - name: coding_agent
           run:
             container:
@@ -33,25 +34,36 @@ pipeline:
             container:
               image: abhinavharness/comment-plugin:latest
             with:
-              comments_file:
+              comments_file: /harness/5c5b7e75_813d_40ec_9836_40b5bcf750e6_autofix/review.json
               scm_provider: harness
-              harness_account_id: ACCOUNT_ID
-              repo: <+inputs.repo>
-              pr_number: <+inputs.pr_number>
+              harness_account_id: 89XwrN2UQO29dCMQGjOMEQ
+              harness_org_id: default
+              harness_project_id: Igor_UI_test
+              repo: <+inputs.reposi>
+              pr_number: <+inputs.pullReq>
+              scm_endpoint: "https://qa.harness.io"
             env:
               TOKEN: <+inputs.harnessKey>
-
       platform:
         os: linux
-        arch: amd64
+        arch: arm64
+      clone:
+        override: true
+        strategy: source-branch
   inputs:
     anthropicKey:
       type: secret
       default: account.autofix_anthropic_api_key
     harnessKey:
       type: secret
-      default: account.harness_api_key
+      default: satharness
     repo:
+      type: string
+      required: true
+    pullReq:
+      type: string
+      required: true
+  name: codereview
       type: string
     pullReq:
       type: string
