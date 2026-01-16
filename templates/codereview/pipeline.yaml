@@ -48,7 +48,7 @@ pipeline:
       default: account.autofix_anthropic_api_key
     harnessKey:
       type: secret
-      default: satharness
+      default: account.harness_api_key
     repo:
       type: string
       required: true
