@@ -35,21 +35,13 @@ pipeline:
               image: abhinavharness/comment-plugin:latest
             with:
               comments_file: /harness/5c5b7e75_813d_40ec_9836_40b5bcf750e6_autofix/review.json
-              scm_provider: harness
-              harness_account_id: 89XwrN2UQO29dCMQGjOMEQ
-              harness_org_id: default
-              harness_project_id: Igor_UI_test
-              repo: <+inputs.reposi>
+              repo: <+inputs.repo>
               pr_number: <+inputs.pullReq>
-              scm_endpoint: "https://qa.harness.io"
             env:
               TOKEN: <+inputs.harnessKey>
       platform:
         os: linux
         arch: arm64
-      clone:
-        override: true
-        strategy: source-branch
   inputs:
     anthropicKey:
       type: secret
@@ -64,8 +56,3 @@ pipeline:
       type: string
       required: true
   name: codereview
-      type: string
-    pullReq:
-      type: string
-    executionId:
-      type: string
