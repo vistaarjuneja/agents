@@ -5,25 +5,35 @@ pipeline:
       name: <+inputs.branch>
       type: branch
     repo: <+inputs.repo>
-    clonedir: /harness/<+inputs.repo>
   stages:
     - name: FFCleanup
       timeout: 10m
       cache:
         disabled: false
+      platform:
+        os: linux
+        arch: arm64
       steps:
-        - run:
+        - name: Agent prompt
+          run:
             shell: bash
-            script: >-
+            script: >
               #!/bin/bash
 
+              # Input Variables
 
-              FEATURE_FLAG=${FEATURE_FLAG}
+              FEATURE_FLAG=<+inputs.featureFlag>
 
-              TREATMENT=${TREATMENT}
+              TREATMENT=$(echo "<+inputs.treatment>" | xargs) #trimming input
+              with xargs
 
-              OUTPUT_TASK=${OUTPUT_TASK}
+              # working dir and metadata info
 
+              WORKING_DIR=/harness/temp-pipeline
+
+              OUTPUT_TASK="${WORKING_DIR}/task.txt"
+
+              mkdir -p $WORKING_DIR
 
               echo "Please execute the following steps:
                   - Given the next Feature Flags list suitable for cleanup
@@ -41,24 +51,163 @@ pipeline:
                             - Use the tool \`FileSystem-WriteFile\` to write the updated file back overwriting the original one. DO NOT use a different name.
                         - If it's a public/exported constant, use the \`CodeSearch-Regex\` tool using the name of the constant as an argument and find references to such constants in other files. Add the result of that operation to the \`pending file list\` so that they're iterated as well within this loop.
                   - After all files have been updated end the conversation with the next outcome to apply changes in a git repository:
-                      - write a new file named \`branch.txt\` with the branch name, should be short, descriptive and have no spaces and ends with a suffix number like a timestamp.
-                      - write a new file named \`commit.txt\` with a commit description message.
-                      - write a new file named \`pr_title.txt\` with a descriptive Pull Request Title.
-                      - write a new file named \`pr_description.txt\` within a summary about all performed changes." > ${OUTPUT_TASK}
+                      - write a new file named \`${WORKING_DIR}/branch.txt\` with the branch name, should be short, descriptive and have no spaces and ends with a suffix number like a timestamp.
+                      - write a new file named \`${WORKING_DIR}/commit.txt\` with a commit description message.
+                      - write a new file named \`${WORKING_DIR}/pr_title.txt\` with a descriptive Pull Request Title.
+                      - write a new file named \`${WORKING_DIR}/pr_description.txt\` within a summary about all performed changes." > ${OUTPUT_TASK}
+
+              # DEBUG #pwd
+
+              #ls -la . 
+
+              #echo "*** TEMPORAL DIR ***"
+
+              #ls -la ${OUTPUT_TASK}
+
+              #echo "**** CAT ****"
+
+              #cat ${OUTPUT_TASK}
+        - name: coding_agent
+          run:
+            container:
+              image: anewdocker25/mydockerhub:coding-agent
+            with:
+              detailed_logging: "true"
+              max_iterations: "50"
+              task_file_path: /harness/temp-pipeline/task.txt
+              working_directory: /harness
+              show_diff: "false"
             env:
-              FEATURE_FLAG: ${{inputs.FEATUREFLAG}}
-              TREATMENT: ${{inputs.TREATMENT}}
-              OUTPUT_TASK: /harness/task.txt
+              ANTHROPIC_API_KEY: <+inputs.anthropicKey>
+        - name: createNetrc
+          run:
+            shell: sh
+            script: |-
+              cat <<EOF > ${HOME}/.netrc
+                machine ${DRONE_NETRC_MACHINE}
+                login ${DRONE_NETRC_USERNAME}
+                password ${DRONE_NETRC_PASSWORD}
+                EOF
+        - name: Pull Request Pusher
+          run:
+            shell: bash
+            script: >
+              #!/bin/bash
+
+              set -ex
+
+              HARNESS_BASE_URL="https://qa.harness.io"
+
+              HARNESS_API_TOKEN=<+inputs.harnessApiKey>
+
+              HARNESS_ACCOUNT=<+account.identifier>
+
+              HARNESS_ORG=<+org.identifier>
+
+              HARNESS_PROJECT=<+project.identifier>
+
+              REPO_NAME=<+inputs.repo>
+
+              echo "- Pushing PR in repository '${REPO_NAME}'..." 
+
+              echo "  - HARNESS_ACCOUNT='${HARNESS_ACCOUNT}'" 
+
+              echo "  - HARNESS_ORG='${HARNESS_ORG}'" 
+
+              echo "  - HARNESS_PROJECT='${HARNESS_PROJECT}'" 
+
+              echo "  - HARNESS_API_TOKEN='${HARNESS_API_TOKEN}'"              
+
+
+              BRANCH_NAME=$(cat /harness/temp-pipeline/branch.txt) 
+
+              COMMIT_MESSAGE=$(cat /harness/temp-pipeline/commit.txt) 
+
+              PR_DESCRIPTION=$(cat /harness/temp-pipeline/pr_description.txt) 
+
+              PR_TITLE=$(cat /harness/temp-pipeline/pr_title.txt)
+
+              GITIGNORE_FILE=".gitignore"
+
+              PATTERN="temp-pipeline"
+
+
+              # Verificar si el patrón ya existe en .gitignore
+
+              if ! grep -qxF "$PATTERN" "$GITIGNORE_FILE"; then
+                  echo "$PATTERN" >> "$GITIGNORE_FILE"
+                  echo "✓ Dir '$PATTERN' added to $GITIGNORE_FILE"
+              else
+                  echo "✓ Dir '$PATTERN' already exist in $GITIGNORE_FILE"
+              fi
+              
+              git config --global user.email "c_sebastian.arrubia@harness.io"
+
+              git config --global user.name "harness-feature-flag-cleanup"
+
+              git checkout -b ${BRANCH_NAME} 
+
+              git add . 
+
+              git commit -m "${COMMIT_MESSAGE}" 
+
+              git push origin ${BRANCH_NAME}
+
+
+              PR_DESCRIPTION_ESCAPED=$(echo "$PR_DESCRIPTION" | jq -Rs .)
+
+
+              # Build query parameters 
+
+              QUERY_PARAMS="accountIdentifier=${HARNESS_ACCOUNT}&orgIdentifier=${HARNESS_ORG}&projectIdentifier=${HARNESS_PROJECT}"
+
+              curl -i -X POST \
+                "${HARNESS_BASE_URL}/code/api/v1/repos/${REPO_NAME}/pullreq?${QUERY_PARAMS}" \
+                -H 'Content-Type: application/json' \
+                -H "x-api-key: ${HARNESS_API_TOKEN}" \
+                -d @- <<EOF
+              {
+
+              "bypass_rules": true,
+
+              "description": ${PR_DESCRIPTION_ESCAPED},
+
+              "is_draft": true,
+
+              "labels": [],
+
+              "reviewer_ids": [],
+
+              "source_branch": "${BRANCH_NAME}",
+
+              "source_repo_ref": "",
+
+              "target_branch": "main",
+
+              "title": "${PR_TITLE}",
+
+              "user_group_reviewer_ids": []
+
+              }
+
+              EOF
   inputs:
-    FEATUREFLAG:
+    anthropicKey:
+      type: secret
+      default: ffcleanup_anthropic_apikey
+    harnessApiKey:
+      type: secret
+      default: ffcleanup_harness_apikey
+    featureFlag:
       type: string
       label: Feature Flag
       required: true
       description: The feature flag to be cleaned up
-    TREATMENT:
+    treatment:
       type: string
-      label: The treatment to keep the branch code
-      required: true
+      label: Treatment
+      description: The treatment to keep the branch code
+      required: false
       default: on
     repo:
       type: string
