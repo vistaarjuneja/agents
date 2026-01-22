@@ -13,6 +13,7 @@ pipeline:
               REPO_NAME: <+inputs.repoName>
               REPO_NAMESPACE: <+inputs.repoNamespace>
               SCM_TOKEN: <+inputs.scmToken>
+              CONNECTOR_REF: <+inputs.connectorRef>
       platform:
         os: linux
         arch: amd64
@@ -37,4 +38,7 @@ pipeline:
       type: string
       required: true
       description: Namespace of repository to clone (e.g., github username)
+    connectorRef:
+      type: string
+      description: Harness connector reference to use for git operations (optional)
   name: onboarding
