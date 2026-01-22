@@ -1,0 +1,5 @@
+{
+    "name": "onboarding",
+    "description": "Onboarding agent that imports repositories into Harness Code and auto-generates CI pipelines using AI analysis",
+    "version": "1.0.0"
+}

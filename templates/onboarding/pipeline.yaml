@@ -1,0 +1,42 @@
+pipeline:
+  clone:
+    depth: 1
+    repo: <+inputs.repo>
+    connector: <+inputs.connector>
+  stages:
+    - name: onboarding
+      steps:
+        - name: onboarding_agent
+          run:
+            container:
+              image: colinharness/onboarding-agent:1.0.0
+            env:
+              ANTHROPIC_API_KEY: <+inputs.anthropicKey>
+              HARNESS_API_KEY: <+inputs.harnessKey>
+              HARNESS_BASE_URL: <+inputs.harnessBaseURL>
+              GITHUB_TOKEN: <+inputs.githubToken>
+      platform:
+        os: linux
+        arch: amd64
+  inputs:
+    anthropicKey:
+      type: secret
+      description: Anthropic API key for Claude AI
+    harnessKey:
+      type: secret
+      description: Harness API key for creating pipelines
+    harnessBaseURL:
+      type: secret
+      description: The base URL for harness - in production it's https://harness0.harness.io/gateway/
+    githubToken:
+      type: secret
+      description: GitHub token / password for accessing private repositories (optional)
+    repo:
+      type: string
+      required: true
+      description: Repository to clone
+    connector:
+      type: string
+      required: true
+      description: Harness connector to use for authentication
+  name: onboarding
