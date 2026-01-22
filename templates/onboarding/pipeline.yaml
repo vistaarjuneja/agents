@@ -1,8 +1,4 @@
 pipeline:
-  clone:
-    depth: 1
-    repo: <+inputs.repo>
-    connector: <+inputs.connector>
   stages:
     - name: onboarding
       steps:
@@ -14,7 +10,9 @@ pipeline:
               ANTHROPIC_API_KEY: <+inputs.anthropicKey>
               HARNESS_API_KEY: <+inputs.harnessKey>
               HARNESS_BASE_URL: <+inputs.harnessBaseURL>
-              GITHUB_TOKEN: <+inputs.githubToken>
+              REPO_NAME: <+inputs.repoName>
+              REPO_NAMESPACE: <+inputs.repoNamespace>
+              SCM_TOKEN: <+inputs.scmToken>
       platform:
         os: linux
         arch: amd64
@@ -28,15 +26,15 @@ pipeline:
     harnessBaseURL:
       type: secret
       description: The base URL for harness - in production it's https://harness0.harness.io/gateway/
-    githubToken:
+    scmToken:
       type: secret
       description: GitHub token / password for accessing private repositories (optional)
-    repo:
+    repoName:
       type: string
       required: true
-      description: Repository to clone
-    connector:
+      description: Name of repository to clone
+    repoNamespace:
       type: string
       required: true
-      description: Harness connector to use for authentication
+      description: Namespace of repository to clone (e.g., github username)
   name: onboarding
