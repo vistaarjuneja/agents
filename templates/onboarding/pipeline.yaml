@@ -10,7 +10,6 @@ pipeline:
             env:
               ANTHROPIC_API_KEY: <+inputs.anthropicKey>
               HARNESS_API_KEY: <+inputs.harnessKey>
-              HARNESS_BASE_URL: <+inputs.harnessBaseURL>
               REPO_NAME: <+inputs.repoName>
               REPO_NAMESPACE: <+inputs.repoNamespace>
               SCM_TOKEN: <+inputs.scmToken>
@@ -25,11 +24,8 @@ pipeline:
       description: Anthropic API key for Claude AI
     harnessKey:
       type: secret
+      default: account.onboarding_harness_token
       description: Harness API key for creating pipelines
-    harnessBaseURL:
-      type: secret
-      default: account.onboarding_harness_base_url
-      description: The base URL for harness - in production it's https://harness0.harness.io/gateway/
     scmToken:
       type: secret
       description: GitHub token / password for accessing private repositories (optional)
